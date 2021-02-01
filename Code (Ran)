@@ -1,0 +1,770 @@
+# lstm for time series forecasting
+from numpy import sqrt
+from numpy import asarray
+from pandas import read_csv
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import LSTM
+
+# split a univariate sequence into samples
+
+def split_sequence(sequence, n_steps):
+    X, y = list(), list()
+    for i in range(len(sequence)):
+        # find the end of this pattern
+        end_ix = i + n_steps
+        # check if we are beyond the sequence
+        if end_ix > len(sequence)-1:
+            break
+        # gather input and output parts of the pattern
+        seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
+        X.append(seq_x)
+        y.append(seq_y)
+    return asarray(X), asarray(y)
+
+# load the dataset
+
+path = 'https://raw.githubusercontent.com/jbrownlee/Datasets/master/monthly-car-sales.csv'
+df = read_csv(path, header=0, index_col=0, squeeze=True)
+
+# retrieve the values
+values = df.values.astype('float32')
+
+# specify the window size
+n_steps = 5
+
+# split into samples
+X, y = split_sequence(values, n_steps)
+
+# reshape into [samples, timesteps, features]
+X = X.reshape((X.shape[0], X.shape[1], 1))
+# split into train/test
+n_test = 12
+X_train, X_test, y_train, y_test = X[:-n_test], X[-n_test:], y[:-n_test], y[-n_test:]
+print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+
+# define model
+model = Sequential()
+model.add(LSTM(100, activation='relu', kernel_initializer='he_normal', input_shape=(n_steps,1)))
+model.add(Dense(50, activation='relu', kernel_initializer='he_normal'))
+model.add(Dense(50, activation='relu', kernel_initializer='he_normal'))
+model.add(Dense(1))
+
+# compile the model
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+
+# fit the model
+model.fit(X_train, y_train, epochs=350, batch_size=32, verbose=2, validation_data=(X_test, y_test))
+
+# evaluate the model
+mse, mae = model.evaluate(X_test, y_test, verbose=0)
+print('MSE: %.3f, RMSE: %.3f, MAE: %.3f' % (mse, sqrt(mse), mae))
+
+# make a prediction
+row = asarray([18024.0, 16722.0, 14385.0, 21342.0, 17180.0]).reshape((1, n_steps, 1))
+yhat = model.predict(row)
+print('Predicted: %.3f' % (yhat))
+(91, 5, 1) (12, 5, 1) (91,) (12,)
+Train on 91 samples, validate on 12 samples
+Epoch 1/350
+91/91 - 6s - loss: 348878000.0000 - mae: 15759.6953 - val_loss: 234998192.0000 - val_mae: 13884.5127
+Epoch 2/350
+91/91 - 0s - loss: 160311970.6374 - mae: 10678.1357 - val_loss: 125977064.0000 - val_mae: 8281.7373
+Epoch 3/350
+91/91 - 0s - loss: 120093676.1319 - mae: 8749.3545 - val_loss: 56315220.0000 - val_mae: 5999.3052
+Epoch 4/350
+91/91 - 0s - loss: 47129265.9780 - mae: 5544.2725 - val_loss: 17967362.0000 - val_mae: 3279.5261
+Epoch 5/350
+91/91 - 0s - loss: 23735617.2527 - mae: 3919.6960 - val_loss: 44932572.0000 - val_mae: 5430.9922
+Epoch 6/350
+91/91 - 0s - loss: 40588491.7802 - mae: 5228.4785 - val_loss: 35907452.0000 - val_mae: 4827.7988
+Epoch 7/350
+91/91 - 0s - loss: 26988788.3187 - mae: 4220.8862 - val_loss: 32512992.0000 - val_mae: 4594.9097
+Epoch 8/350
+91/91 - 0s - loss: 21647871.8681 - mae: 3585.2417 - val_loss: 45391028.0000 - val_mae: 5601.4858
+Epoch 9/350
+91/91 - 0s - loss: 26024655.0110 - mae: 4003.3481 - val_loss: 37005068.0000 - val_mae: 5294.6592
+Epoch 10/350
+91/91 - 0s - loss: 16299965.0110 - mae: 3172.4622 - val_loss: 14570012.0000 - val_mae: 3154.2012
+Epoch 11/350
+91/91 - 0s - loss: 10942353.0549 - mae: 2560.7131 - val_loss: 16495805.0000 - val_mae: 2967.6309
+Epoch 12/350
+91/91 - 0s - loss: 14707439.6044 - mae: 2933.9917 - val_loss: 19086914.0000 - val_mae: 3341.4392
+Epoch 13/350
+91/91 - 0s - loss: 13090439.5769 - mae: 2734.2024 - val_loss: 17100838.0000 - val_mae: 3551.2092
+Epoch 14/350
+91/91 - 0s - loss: 12933758.4176 - mae: 2827.0989 - val_loss: 15138984.0000 - val_mae: 3483.7454
+Epoch 15/350
+91/91 - 0s - loss: 13753951.7802 - mae: 2939.1707 - val_loss: 17205754.0000 - val_mae: 3845.4941
+Epoch 16/350
+91/91 - 0s - loss: 12688695.1429 - mae: 2818.7163 - val_loss: 17271046.0000 - val_mae: 3420.5332
+Epoch 17/350
+91/91 - 0s - loss: 13703601.8681 - mae: 2853.6768 - val_loss: 22788240.0000 - val_mae: 3858.0330
+Epoch 18/350
+91/91 - 0s - loss: 14887357.1648 - mae: 2893.5691 - val_loss: 11911575.0000 - val_mae: 2704.7512
+Epoch 19/350
+91/91 - 0s - loss: 12239858.0000 - mae: 2704.5364 - val_loss: 15077463.0000 - val_mae: 3418.5193
+Epoch 20/350
+91/91 - 0s - loss: 12825894.8352 - mae: 2915.6919 - val_loss: 13294123.0000 - val_mae: 3204.1038
+Epoch 21/350
+91/91 - 0s - loss: 11175310.3022 - mae: 2666.9448 - val_loss: 12070581.0000 - val_mae: 2757.3245
+Epoch 22/350
+91/91 - 0s - loss: 11328964.6484 - mae: 2551.1316 - val_loss: 13823752.0000 - val_mae: 2730.4934
+Epoch 23/350
+91/91 - 0s - loss: 11330115.2527 - mae: 2507.4351 - val_loss: 11770771.0000 - val_mae: 2740.4480
+Epoch 24/350
+91/91 - 0s - loss: 12722707.7802 - mae: 2648.4675 - val_loss: 11564091.0000 - val_mae: 2967.8523
+Epoch 25/350
+91/91 - 0s - loss: 12694147.9560 - mae: 2755.2095 - val_loss: 11508005.0000 - val_mae: 2968.7305
+Epoch 26/350
+91/91 - 0s - loss: 12809182.7253 - mae: 2686.5547 - val_loss: 11542028.0000 - val_mae: 2674.1965
+Epoch 27/350
+91/91 - 0s - loss: 11387704.2418 - mae: 2482.3513 - val_loss: 12080496.0000 - val_mae: 2584.2361
+Epoch 28/350
+91/91 - 0s - loss: 9934707.1978 - mae: 2389.8003 - val_loss: 11028517.0000 - val_mae: 2857.4785
+Epoch 29/350
+91/91 - 0s - loss: 10220264.6484 - mae: 2548.2781 - val_loss: 12397340.0000 - val_mae: 3209.4280
+Epoch 30/350
+91/91 - 0s - loss: 11318408.8242 - mae: 2735.6514 - val_loss: 11254956.0000 - val_mae: 2969.2373
+Epoch 31/350
+91/91 - 0s - loss: 10602983.0879 - mae: 2569.2109 - val_loss: 11345725.0000 - val_mae: 2665.3035
+Epoch 32/350
+91/91 - 0s - loss: 9881488.3956 - mae: 2401.8022 - val_loss: 11393277.0000 - val_mae: 2759.2012
+Epoch 33/350
+91/91 - 0s - loss: 10440665.4066 - mae: 2492.8250 - val_loss: 11299231.0000 - val_mae: 2932.6941
+Epoch 34/350
+91/91 - 0s - loss: 10395117.4780 - mae: 2552.1975 - val_loss: 11211812.0000 - val_mae: 2795.9778
+Epoch 35/350
+91/91 - 0s - loss: 9872845.0330 - mae: 2425.4512 - val_loss: 11944647.0000 - val_mae: 2742.5896
+Epoch 36/350
+91/91 - 0s - loss: 9747627.4725 - mae: 2420.7451 - val_loss: 12000177.0000 - val_mae: 3002.8320
+Epoch 37/350
+91/91 - 0s - loss: 9775323.5495 - mae: 2490.1509 - val_loss: 12090637.0000 - val_mae: 3060.9885
+Epoch 38/350
+91/91 - 0s - loss: 9392587.5604 - mae: 2470.2139 - val_loss: 11945611.0000 - val_mae: 3006.6533
+Epoch 39/350
+91/91 - 0s - loss: 9476041.8352 - mae: 2475.1445 - val_loss: 11836580.0000 - val_mae: 2841.7715
+Epoch 40/350
+91/91 - 0s - loss: 9491761.3297 - mae: 2354.3579 - val_loss: 12476520.0000 - val_mae: 2720.4851
+Epoch 41/350
+91/91 - 0s - loss: 9277732.0989 - mae: 2332.2705 - val_loss: 11837696.0000 - val_mae: 2903.2664
+Epoch 42/350
+91/91 - 0s - loss: 9094357.4505 - mae: 2421.1301 - val_loss: 12094512.0000 - val_mae: 3041.8372
+Epoch 43/350
+91/91 - 0s - loss: 9424512.2857 - mae: 2442.2427 - val_loss: 11921127.0000 - val_mae: 2835.7478
+Epoch 44/350
+91/91 - 0s - loss: 9020854.5275 - mae: 2351.0735 - val_loss: 12023877.0000 - val_mae: 2900.0525
+Epoch 45/350
+91/91 - 0s - loss: 8918517.4835 - mae: 2399.8928 - val_loss: 12043967.0000 - val_mae: 2916.9314
+Epoch 46/350
+91/91 - 0s - loss: 11513849.7033 - mae: 2581.7229 - val_loss: 11900860.0000 - val_mae: 2709.1809
+Epoch 47/350
+91/91 - 0s - loss: 11301023.5275 - mae: 2505.3477 - val_loss: 11974099.0000 - val_mae: 2656.5059
+Epoch 48/350
+91/91 - 0s - loss: 11526054.9725 - mae: 2576.7588 - val_loss: 12472432.0000 - val_mae: 2942.4766
+Epoch 49/350
+91/91 - 0s - loss: 10660545.5330 - mae: 2580.6389 - val_loss: 12325412.0000 - val_mae: 2827.3005
+Epoch 50/350
+91/91 - 0s - loss: 11669526.8681 - mae: 2628.9551 - val_loss: 12147456.0000 - val_mae: 2752.5203
+Epoch 51/350
+91/91 - 0s - loss: 11142224.4945 - mae: 2610.9731 - val_loss: 11398448.0000 - val_mae: 2816.2781
+Epoch 52/350
+91/91 - 0s - loss: 10427065.6648 - mae: 2604.5518 - val_loss: 12290437.0000 - val_mae: 2931.8464
+Epoch 53/350
+91/91 - 0s - loss: 10226732.2527 - mae: 2522.2422 - val_loss: 12541673.0000 - val_mae: 2833.4314
+Epoch 54/350
+91/91 - 0s - loss: 9692908.5275 - mae: 2446.1294 - val_loss: 10924484.0000 - val_mae: 2608.8928
+Epoch 55/350
+91/91 - 0s - loss: 8720640.2143 - mae: 2354.0918 - val_loss: 12340117.0000 - val_mae: 2841.4202
+Epoch 56/350
+91/91 - 0s - loss: 8704281.3736 - mae: 2350.6992 - val_loss: 13602827.0000 - val_mae: 2838.6257
+Epoch 57/350
+91/91 - 0s - loss: 9125443.1758 - mae: 2381.3865 - val_loss: 12867235.0000 - val_mae: 2763.4094
+Epoch 58/350
+91/91 - 0s - loss: 8456199.0330 - mae: 2385.7466 - val_loss: 11574196.0000 - val_mae: 2789.6514
+Epoch 59/350
+91/91 - 0s - loss: 8493307.1319 - mae: 2401.3660 - val_loss: 11905139.0000 - val_mae: 2793.3054
+Epoch 60/350
+91/91 - 0s - loss: 8135502.5824 - mae: 2256.1467 - val_loss: 12102176.0000 - val_mae: 2785.5515
+Epoch 61/350
+91/91 - 0s - loss: 8020699.0055 - mae: 2221.1995 - val_loss: 12019592.0000 - val_mae: 2762.7454
+Epoch 62/350
+91/91 - 0s - loss: 7719829.8626 - mae: 2227.4678 - val_loss: 12354211.0000 - val_mae: 2924.9900
+Epoch 63/350
+91/91 - 0s - loss: 8242000.5604 - mae: 2335.9265 - val_loss: 11992597.0000 - val_mae: 2744.9089
+Epoch 64/350
+91/91 - 0s - loss: 7749919.2088 - mae: 2179.3115 - val_loss: 11834980.0000 - val_mae: 2834.9795
+Epoch 65/350
+91/91 - 0s - loss: 7597575.7363 - mae: 2170.8796 - val_loss: 11708379.0000 - val_mae: 2859.9375
+Epoch 66/350
+91/91 - 0s - loss: 7616780.4286 - mae: 2179.3740 - val_loss: 11669637.0000 - val_mae: 2795.3430
+Epoch 67/350
+91/91 - 0s - loss: 7474875.1978 - mae: 2170.3938 - val_loss: 11974163.0000 - val_mae: 2759.7336
+Epoch 68/350
+91/91 - 0s - loss: 7342658.2308 - mae: 2162.9453 - val_loss: 11982068.0000 - val_mae: 2736.5085
+Epoch 69/350
+91/91 - 0s - loss: 7296616.0549 - mae: 2094.5315 - val_loss: 12043211.0000 - val_mae: 2690.6365
+Epoch 70/350
+91/91 - 0s - loss: 7282446.9231 - mae: 2120.9119 - val_loss: 9544362.0000 - val_mae: 2613.3562
+Epoch 71/350
+91/91 - 0s - loss: 8349599.6923 - mae: 2316.7439 - val_loss: 11789213.0000 - val_mae: 2791.1465
+Epoch 72/350
+91/91 - 0s - loss: 7953788.7033 - mae: 2153.4441 - val_loss: 14244017.0000 - val_mae: 2977.1934
+Epoch 73/350
+91/91 - 0s - loss: 8210853.2308 - mae: 2260.1731 - val_loss: 13854424.0000 - val_mae: 3037.2244
+Epoch 74/350
+91/91 - 0s - loss: 8252312.2253 - mae: 2334.1675 - val_loss: 13498897.0000 - val_mae: 2957.9084
+Epoch 75/350
+91/91 - 0s - loss: 8007213.1429 - mae: 2305.3748 - val_loss: 14912124.0000 - val_mae: 3332.5945
+Epoch 76/350
+91/91 - 0s - loss: 8214106.0879 - mae: 2263.1199 - val_loss: 14810792.0000 - val_mae: 3239.0449
+Epoch 77/350
+91/91 - 0s - loss: 8048793.0000 - mae: 2252.5806 - val_loss: 15284387.0000 - val_mae: 3264.1873
+Epoch 78/350
+91/91 - 0s - loss: 8224573.4670 - mae: 2318.9326 - val_loss: 13846160.0000 - val_mae: 3039.1370
+Epoch 79/350
+91/91 - 0s - loss: 8545298.6538 - mae: 2246.0750 - val_loss: 14758057.0000 - val_mae: 3104.8445
+Epoch 80/350
+91/91 - 0s - loss: 8442909.2967 - mae: 2240.8604 - val_loss: 13484925.0000 - val_mae: 3074.0066
+Epoch 81/350
+91/91 - 0s - loss: 8799449.4835 - mae: 2401.9089 - val_loss: 13686699.0000 - val_mae: 3201.5486
+Epoch 82/350
+91/91 - 0s - loss: 8391221.9231 - mae: 2205.7561 - val_loss: 14856157.0000 - val_mae: 3128.7239
+Epoch 83/350
+91/91 - 0s - loss: 8642990.4121 - mae: 2216.8684 - val_loss: 13219752.0000 - val_mae: 3088.0928
+Epoch 84/350
+91/91 - 0s - loss: 8533654.9231 - mae: 2335.5327 - val_loss: 14073561.0000 - val_mae: 3267.7961
+Epoch 85/350
+91/91 - 0s - loss: 8806986.4396 - mae: 2372.3098 - val_loss: 14587860.0000 - val_mae: 3064.8870
+Epoch 86/350
+91/91 - 0s - loss: 8479849.3736 - mae: 2232.1987 - val_loss: 13311777.0000 - val_mae: 2973.9346
+Epoch 87/350
+91/91 - 0s - loss: 9497723.8462 - mae: 2428.4111 - val_loss: 13590520.0000 - val_mae: 3165.2234
+Epoch 88/350
+91/91 - 0s - loss: 8239059.5495 - mae: 2237.2334 - val_loss: 14519516.0000 - val_mae: 3084.0325
+Epoch 89/350
+91/91 - 0s - loss: 8390010.4121 - mae: 2156.5303 - val_loss: 12866109.0000 - val_mae: 3026.3914
+Epoch 90/350
+91/91 - 0s - loss: 7886869.0604 - mae: 2231.2371 - val_loss: 13306485.0000 - val_mae: 3108.6680
+Epoch 91/350
+91/91 - 0s - loss: 7740933.1868 - mae: 2175.7576 - val_loss: 13462971.0000 - val_mae: 2977.6199
+Epoch 92/350
+91/91 - 0s - loss: 7669525.0110 - mae: 2168.1138 - val_loss: 12989707.0000 - val_mae: 2933.2864
+Epoch 93/350
+91/91 - 0s - loss: 7438551.0110 - mae: 2157.4509 - val_loss: 12578535.0000 - val_mae: 2962.0596
+Epoch 94/350
+91/91 - 0s - loss: 7535955.5934 - mae: 2172.3716 - val_loss: 12357616.0000 - val_mae: 2952.9211
+Epoch 95/350
+91/91 - 0s - loss: 7737887.5495 - mae: 2197.8735 - val_loss: 12284257.0000 - val_mae: 2962.1682
+Epoch 96/350
+91/91 - 0s - loss: 7654091.8242 - mae: 2241.5107 - val_loss: 12492512.0000 - val_mae: 2896.5762
+Epoch 97/350
+91/91 - 0s - loss: 7575058.0220 - mae: 2207.2532 - val_loss: 12501903.0000 - val_mae: 2932.2083
+Epoch 98/350
+91/91 - 0s - loss: 8676982.3516 - mae: 2349.1096 - val_loss: 12463173.0000 - val_mae: 2976.3037
+Epoch 99/350
+91/91 - 0s - loss: 8704944.9231 - mae: 2323.5708 - val_loss: 14157545.0000 - val_mae: 3028.4812
+Epoch 100/350
+91/91 - 0s - loss: 8890476.1264 - mae: 2274.8970 - val_loss: 14294689.0000 - val_mae: 3264.7188
+Epoch 101/350
+91/91 - 0s - loss: 8642383.8791 - mae: 2376.5193 - val_loss: 12260459.0000 - val_mae: 2947.6494
+Epoch 102/350
+91/91 - 0s - loss: 8018628.3516 - mae: 2188.4285 - val_loss: 12638797.0000 - val_mae: 2847.0627
+Epoch 103/350
+91/91 - 0s - loss: 7875289.1703 - mae: 2190.8005 - val_loss: 12629795.0000 - val_mae: 2994.4434
+Epoch 104/350
+91/91 - 0s - loss: 8575545.2198 - mae: 2364.8818 - val_loss: 12309099.0000 - val_mae: 2946.4548
+Epoch 105/350
+91/91 - 0s - loss: 7491600.1593 - mae: 2129.0474 - val_loss: 13064472.0000 - val_mae: 2892.1252
+Epoch 106/350
+91/91 - 0s - loss: 8352445.9670 - mae: 2222.0039 - val_loss: 11978352.0000 - val_mae: 2886.5381
+Epoch 107/350
+91/91 - 0s - loss: 7837977.7418 - mae: 2216.4500 - val_loss: 13239911.0000 - val_mae: 3127.8250
+Epoch 108/350
+91/91 - 0s - loss: 8115984.2088 - mae: 2260.5322 - val_loss: 12320077.0000 - val_mae: 2823.1094
+Epoch 109/350
+91/91 - 0s - loss: 7702526.7527 - mae: 2154.9089 - val_loss: 12152105.0000 - val_mae: 2842.8418
+Epoch 110/350
+91/91 - 0s - loss: 7668377.5604 - mae: 2191.0737 - val_loss: 12362937.0000 - val_mae: 2938.3516
+Epoch 111/350
+91/91 - 0s - loss: 7453450.0330 - mae: 2147.3840 - val_loss: 12066437.0000 - val_mae: 2863.0261
+Epoch 112/350
+91/91 - 0s - loss: 7557414.1264 - mae: 2155.3433 - val_loss: 12195840.0000 - val_mae: 2874.3547
+Epoch 113/350
+91/91 - 0s - loss: 7551270.3571 - mae: 2136.9001 - val_loss: 11942256.0000 - val_mae: 2836.4082
+Epoch 114/350
+91/91 - 0s - loss: 7440473.5659 - mae: 2128.7671 - val_loss: 12275409.0000 - val_mae: 2959.8113
+Epoch 115/350
+91/91 - 0s - loss: 7339635.4176 - mae: 2129.6587 - val_loss: 12500144.0000 - val_mae: 2994.5559
+Epoch 116/350
+91/91 - 0s - loss: 7395778.2747 - mae: 2136.4316 - val_loss: 12314164.0000 - val_mae: 2953.2205
+Epoch 117/350
+91/91 - 0s - loss: 7675658.8791 - mae: 2151.6738 - val_loss: 12409009.0000 - val_mae: 2982.2717
+Epoch 118/350
+91/91 - 0s - loss: 7250315.0879 - mae: 2121.4304 - val_loss: 13069529.0000 - val_mae: 3082.2527
+Epoch 119/350
+91/91 - 0s - loss: 7262403.3846 - mae: 2120.7288 - val_loss: 12368729.0000 - val_mae: 2947.6003
+Epoch 120/350
+91/91 - 0s - loss: 7067734.7363 - mae: 2067.6750 - val_loss: 14137479.0000 - val_mae: 3133.4050
+Epoch 121/350
+91/91 - 0s - loss: 7481230.7033 - mae: 2169.5586 - val_loss: 12691219.0000 - val_mae: 2981.6047
+Epoch 122/350
+91/91 - 0s - loss: 8049983.0220 - mae: 2256.9558 - val_loss: 16583059.0000 - val_mae: 2955.2258
+Epoch 123/350
+91/91 - 0s - loss: 10823293.9451 - mae: 2536.3889 - val_loss: 27472586.0000 - val_mae: 4262.6460
+Epoch 124/350
+91/91 - 0s - loss: 17903809.6484 - mae: 3035.2913 - val_loss: 20986858.0000 - val_mae: 3958.4900
+Epoch 125/350
+91/91 - 0s - loss: 14399101.5824 - mae: 3112.4939 - val_loss: 16689968.0000 - val_mae: 3269.1628
+Epoch 126/350
+91/91 - 0s - loss: 12115854.0000 - mae: 2723.9790 - val_loss: 23600432.0000 - val_mae: 4036.9023
+Epoch 127/350
+91/91 - 0s - loss: 12213299.0879 - mae: 2730.0576 - val_loss: 14752469.0000 - val_mae: 3357.2449
+Epoch 128/350
+91/91 - 0s - loss: 10381784.2967 - mae: 2648.7278 - val_loss: 17618966.0000 - val_mae: 3127.8215
+Epoch 129/350
+91/91 - 0s - loss: 8684778.7967 - mae: 2312.4492 - val_loss: 14631749.0000 - val_mae: 3111.6360
+Epoch 130/350
+91/91 - 0s - loss: 8220380.1758 - mae: 2258.9905 - val_loss: 13337673.0000 - val_mae: 3002.4348
+Epoch 131/350
+91/91 - 0s - loss: 7556838.6703 - mae: 2165.5569 - val_loss: 14765891.0000 - val_mae: 2928.9226
+Epoch 132/350
+91/91 - 0s - loss: 7439810.3901 - mae: 2143.6475 - val_loss: 13089757.0000 - val_mae: 2938.7971
+Epoch 133/350
+91/91 - 0s - loss: 7482464.6703 - mae: 2168.1614 - val_loss: 13051453.0000 - val_mae: 2949.2971
+Epoch 134/350
+91/91 - 0s - loss: 7702370.2912 - mae: 2158.1519 - val_loss: 18489754.0000 - val_mae: 3583.9688
+Epoch 135/350
+91/91 - 0s - loss: 7890941.1648 - mae: 2214.1733 - val_loss: 15488872.0000 - val_mae: 3299.9690
+Epoch 136/350
+91/91 - 0s - loss: 7647982.1319 - mae: 2159.6250 - val_loss: 18544610.0000 - val_mae: 3619.2549
+Epoch 137/350
+91/91 - 0s - loss: 7931223.8901 - mae: 2204.0957 - val_loss: 17486280.0000 - val_mae: 3691.5281
+Epoch 138/350
+91/91 - 0s - loss: 7102340.5330 - mae: 2089.7075 - val_loss: 13812848.0000 - val_mae: 3202.0266
+Epoch 139/350
+91/91 - 0s - loss: 6874311.1978 - mae: 2006.2411 - val_loss: 14406443.0000 - val_mae: 3362.9570
+Epoch 140/350
+91/91 - 0s - loss: 6972205.0440 - mae: 2109.0674 - val_loss: 13540065.0000 - val_mae: 3144.2781
+Epoch 141/350
+91/91 - 0s - loss: 6452635.4148 - mae: 1960.4662 - val_loss: 13022361.0000 - val_mae: 2927.7031
+Epoch 142/350
+91/91 - 0s - loss: 6732801.8434 - mae: 1963.4469 - val_loss: 13531867.0000 - val_mae: 3173.2102
+Epoch 143/350
+91/91 - 0s - loss: 7115061.5769 - mae: 2089.7405 - val_loss: 15104303.0000 - val_mae: 3369.1804
+Epoch 144/350
+91/91 - 0s - loss: 6979217.4341 - mae: 2029.3838 - val_loss: 12388927.0000 - val_mae: 2929.4629
+Epoch 145/350
+91/91 - 0s - loss: 6922097.6374 - mae: 1982.0580 - val_loss: 13880297.0000 - val_mae: 3243.2627
+Epoch 146/350
+91/91 - 0s - loss: 6552557.8956 - mae: 1969.8121 - val_loss: 15023477.0000 - val_mae: 3163.5422
+Epoch 147/350
+91/91 - 0s - loss: 6887161.6154 - mae: 1952.5320 - val_loss: 14501499.0000 - val_mae: 3212.4690
+Epoch 148/350
+91/91 - 0s - loss: 8902413.7060 - mae: 2247.9763 - val_loss: 9510335.0000 - val_mae: 2616.2419
+Epoch 149/350
+91/91 - 0s - loss: 8348876.6593 - mae: 2146.5286 - val_loss: 10119869.0000 - val_mae: 2573.3157
+Epoch 150/350
+91/91 - 0s - loss: 8102066.6648 - mae: 2174.5652 - val_loss: 17584638.0000 - val_mae: 3393.8640
+Epoch 151/350
+91/91 - 0s - loss: 7455678.4505 - mae: 2120.8713 - val_loss: 16554967.0000 - val_mae: 3185.7800
+Epoch 152/350
+91/91 - 0s - loss: 7493248.9505 - mae: 2079.3689 - val_loss: 16186831.0000 - val_mae: 3108.2424
+Epoch 153/350
+91/91 - 0s - loss: 7119986.0659 - mae: 2064.5627 - val_loss: 15873104.0000 - val_mae: 3048.1477
+Epoch 154/350
+91/91 - 0s - loss: 6815931.0769 - mae: 2019.2854 - val_loss: 14491380.0000 - val_mae: 2892.1523
+Epoch 155/350
+91/91 - 0s - loss: 7074590.7473 - mae: 2037.8970 - val_loss: 14487856.0000 - val_mae: 3112.5625
+Epoch 156/350
+91/91 - 0s - loss: 7457363.7363 - mae: 2095.4915 - val_loss: 14469341.0000 - val_mae: 2950.3757
+Epoch 157/350
+91/91 - 0s - loss: 7384242.5824 - mae: 2141.4771 - val_loss: 14471244.0000 - val_mae: 3010.4661
+Epoch 158/350
+91/91 - 0s - loss: 7200654.7775 - mae: 2122.1724 - val_loss: 14368701.0000 - val_mae: 2967.9675
+Epoch 159/350
+91/91 - 0s - loss: 6416887.5934 - mae: 1959.0824 - val_loss: 14011936.0000 - val_mae: 2969.6858
+Epoch 160/350
+91/91 - 0s - loss: 6943304.0440 - mae: 2010.8291 - val_loss: 13913184.0000 - val_mae: 2833.9153
+Epoch 161/350
+91/91 - 0s - loss: 7607149.8571 - mae: 2119.2983 - val_loss: 15505035.0000 - val_mae: 3059.3867
+Epoch 162/350
+91/91 - 0s - loss: 8534160.2967 - mae: 2253.1978 - val_loss: 13343621.0000 - val_mae: 2841.9700
+Epoch 163/350
+91/91 - 0s - loss: 7082045.5495 - mae: 2111.6521 - val_loss: 19412110.0000 - val_mae: 3810.4775
+Epoch 164/350
+91/91 - 0s - loss: 7395894.3846 - mae: 2167.1975 - val_loss: 14697467.0000 - val_mae: 3055.0906
+Epoch 165/350
+91/91 - 0s - loss: 7542123.2198 - mae: 2165.2380 - val_loss: 16020948.0000 - val_mae: 3358.7158
+Epoch 166/350
+91/91 - 0s - loss: 7492433.7912 - mae: 2136.3022 - val_loss: 14101643.0000 - val_mae: 3074.2166
+Epoch 167/350
+91/91 - 0s - loss: 7047002.6978 - mae: 2103.8926 - val_loss: 15244733.0000 - val_mae: 3130.4082
+Epoch 168/350
+91/91 - 0s - loss: 7317418.0440 - mae: 2125.0894 - val_loss: 14719659.0000 - val_mae: 2973.9910
+Epoch 169/350
+91/91 - 0s - loss: 7984196.6099 - mae: 2181.9783 - val_loss: 14665268.0000 - val_mae: 3039.1562
+Epoch 170/350
+91/91 - 0s - loss: 7818746.0934 - mae: 2180.4475 - val_loss: 15129520.0000 - val_mae: 3239.5811
+Epoch 171/350
+91/91 - 0s - loss: 7792183.1868 - mae: 2170.9790 - val_loss: 14947969.0000 - val_mae: 3276.0002
+Epoch 172/350
+91/91 - 0s - loss: 7539991.0659 - mae: 2140.4990 - val_loss: 13199016.0000 - val_mae: 3018.6165
+Epoch 173/350
+91/91 - 0s - loss: 8222908.4341 - mae: 2229.4170 - val_loss: 13447711.0000 - val_mae: 2999.9453
+Epoch 174/350
+91/91 - 0s - loss: 7682941.9780 - mae: 2161.4285 - val_loss: 14421545.0000 - val_mae: 3071.5967
+Epoch 175/350
+91/91 - 0s - loss: 7685224.3187 - mae: 2171.7405 - val_loss: 14610117.0000 - val_mae: 3122.6992
+Epoch 176/350
+91/91 - 0s - loss: 7190917.5055 - mae: 2113.0239 - val_loss: 14987704.0000 - val_mae: 3158.0168
+Epoch 177/350
+91/91 - 0s - loss: 6949198.6264 - mae: 2075.0093 - val_loss: 15408620.0000 - val_mae: 3173.6643
+Epoch 178/350
+91/91 - 0s - loss: 6716734.7143 - mae: 2040.3252 - val_loss: 16370964.0000 - val_mae: 3224.6523
+Epoch 179/350
+91/91 - 0s - loss: 6703595.1319 - mae: 2041.7184 - val_loss: 16537869.0000 - val_mae: 3263.6472
+Epoch 180/350
+91/91 - 0s - loss: 6742533.6429 - mae: 2037.5786 - val_loss: 16725867.0000 - val_mae: 3263.7336
+Epoch 181/350
+91/91 - 0s - loss: 6547325.1978 - mae: 2007.1136 - val_loss: 16913926.0000 - val_mae: 3295.6687
+Epoch 182/350
+91/91 - 0s - loss: 6638168.2692 - mae: 2030.3695 - val_loss: 17565686.0000 - val_mae: 3309.1653
+Epoch 183/350
+91/91 - 0s - loss: 6885276.2967 - mae: 2107.4771 - val_loss: 17415598.0000 - val_mae: 3334.8477
+Epoch 184/350
+91/91 - 0s - loss: 6526335.0110 - mae: 2011.9391 - val_loss: 17526442.0000 - val_mae: 3405.1404
+Epoch 185/350
+91/91 - 0s - loss: 6738017.2912 - mae: 2004.2112 - val_loss: 18165254.0000 - val_mae: 3358.4338
+Epoch 186/350
+91/91 - 0s - loss: 6578255.5275 - mae: 2063.8726 - val_loss: 17438962.0000 - val_mae: 3407.3848
+Epoch 187/350
+91/91 - 0s - loss: 6739727.0934 - mae: 2041.4296 - val_loss: 17798670.0000 - val_mae: 3396.1172
+Epoch 188/350
+91/91 - 0s - loss: 6465215.7088 - mae: 1975.8817 - val_loss: 17681002.0000 - val_mae: 3363.7581
+Epoch 189/350
+91/91 - 0s - loss: 6519598.4066 - mae: 2034.3781 - val_loss: 17814974.0000 - val_mae: 3335.6555
+Epoch 190/350
+91/91 - 0s - loss: 6300632.9286 - mae: 1987.0059 - val_loss: 17234562.0000 - val_mae: 3377.3347
+Epoch 191/350
+91/91 - 0s - loss: 6416074.5495 - mae: 1967.1833 - val_loss: 17119250.0000 - val_mae: 3358.8086
+Epoch 192/350
+91/91 - 0s - loss: 6406012.3077 - mae: 1993.0798 - val_loss: 17417096.0000 - val_mae: 3334.2844
+Epoch 193/350
+91/91 - 0s - loss: 6270709.2967 - mae: 1974.3235 - val_loss: 17166158.0000 - val_mae: 3392.7480
+Epoch 194/350
+91/91 - 0s - loss: 6405000.5604 - mae: 1950.9906 - val_loss: 17258034.0000 - val_mae: 3307.3406
+Epoch 195/350
+91/91 - 0s - loss: 6496411.0000 - mae: 2036.0820 - val_loss: 17279638.0000 - val_mae: 3297.6223
+Epoch 196/350
+91/91 - 0s - loss: 6252430.9670 - mae: 1962.2438 - val_loss: 16896920.0000 - val_mae: 3381.1003
+Epoch 197/350
+91/91 - 0s - loss: 7079447.9725 - mae: 2046.3430 - val_loss: 16960750.0000 - val_mae: 3314.3799
+Epoch 198/350
+91/91 - 0s - loss: 6438663.8681 - mae: 2018.0284 - val_loss: 17955530.0000 - val_mae: 3372.0840
+Epoch 199/350
+91/91 - 0s - loss: 6751702.4560 - mae: 2101.5439 - val_loss: 16828678.0000 - val_mae: 3355.3884
+Epoch 200/350
+91/91 - 0s - loss: 7272257.5604 - mae: 2140.9404 - val_loss: 16975750.0000 - val_mae: 3280.4104
+Epoch 201/350
+91/91 - 0s - loss: 6468739.7088 - mae: 2023.2936 - val_loss: 16127936.0000 - val_mae: 3298.2249
+Epoch 202/350
+91/91 - 0s - loss: 6224061.7143 - mae: 1936.1051 - val_loss: 16969816.0000 - val_mae: 3291.4023
+Epoch 203/350
+91/91 - 0s - loss: 6325667.7967 - mae: 2011.9739 - val_loss: 16946312.0000 - val_mae: 3334.5312
+Epoch 204/350
+91/91 - 0s - loss: 6197380.6786 - mae: 1954.9011 - val_loss: 17262126.0000 - val_mae: 3375.6121
+Epoch 205/350
+91/91 - 0s - loss: 6284072.7418 - mae: 1972.3961 - val_loss: 17645650.0000 - val_mae: 3349.9402
+Epoch 206/350
+91/91 - 0s - loss: 6372838.2747 - mae: 2012.7900 - val_loss: 17056962.0000 - val_mae: 3366.8586
+Epoch 207/350
+91/91 - 0s - loss: 6219875.0385 - mae: 1938.0155 - val_loss: 16842230.0000 - val_mae: 3393.5974
+Epoch 208/350
+91/91 - 0s - loss: 6480837.1044 - mae: 1991.2319 - val_loss: 17584238.0000 - val_mae: 3335.7566
+Epoch 209/350
+91/91 - 0s - loss: 6264921.0824 - mae: 1997.4612 - val_loss: 17075786.0000 - val_mae: 3345.1965
+Epoch 210/350
+91/91 - 0s - loss: 6246388.9286 - mae: 1960.1243 - val_loss: 17386646.0000 - val_mae: 3327.6008
+Epoch 211/350
+91/91 - 0s - loss: 6160237.1648 - mae: 1981.6257 - val_loss: 17535598.0000 - val_mae: 3338.3691
+Epoch 212/350
+91/91 - 0s - loss: 6221147.9423 - mae: 1978.5485 - val_loss: 17160168.0000 - val_mae: 3358.9180
+Epoch 213/350
+91/91 - 0s - loss: 6366052.9121 - mae: 1956.7336 - val_loss: 16947610.0000 - val_mae: 3370.0488
+Epoch 214/350
+91/91 - 0s - loss: 6603621.5604 - mae: 2061.1709 - val_loss: 17802438.0000 - val_mae: 3353.2937
+Epoch 215/350
+91/91 - 0s - loss: 6432475.8489 - mae: 2009.5305 - val_loss: 16929598.0000 - val_mae: 3365.2864
+Epoch 216/350
+91/91 - 0s - loss: 6450305.3022 - mae: 2003.6246 - val_loss: 17776760.0000 - val_mae: 3351.2454
+Epoch 217/350
+91/91 - 0s - loss: 6202608.3407 - mae: 1969.6740 - val_loss: 16835278.0000 - val_mae: 3354.8604
+Epoch 218/350
+91/91 - 0s - loss: 6319518.7527 - mae: 1953.8768 - val_loss: 17155350.0000 - val_mae: 3357.1914
+Epoch 219/350
+91/91 - 0s - loss: 6183212.5110 - mae: 1946.0248 - val_loss: 17205004.0000 - val_mae: 3419.0000
+Epoch 220/350
+91/91 - 0s - loss: 6238098.9670 - mae: 1955.7892 - val_loss: 18208122.0000 - val_mae: 3379.3398
+Epoch 221/350
+91/91 - 0s - loss: 6539519.1978 - mae: 2041.5026 - val_loss: 17005158.0000 - val_mae: 3380.4561
+Epoch 222/350
+91/91 - 0s - loss: 6109031.7253 - mae: 1932.1847 - val_loss: 17014714.0000 - val_mae: 3392.6152
+Epoch 223/350
+91/91 - 0s - loss: 6293706.3571 - mae: 1966.3853 - val_loss: 18179342.0000 - val_mae: 3386.4980
+Epoch 224/350
+91/91 - 0s - loss: 6180292.5165 - mae: 1975.3737 - val_loss: 17209926.0000 - val_mae: 3376.1575
+Epoch 225/350
+91/91 - 0s - loss: 6056274.5000 - mae: 1939.9468 - val_loss: 17463274.0000 - val_mae: 3344.9192
+Epoch 226/350
+91/91 - 0s - loss: 6197511.3462 - mae: 1976.2246 - val_loss: 17266140.0000 - val_mae: 3359.0159
+Epoch 227/350
+91/91 - 0s - loss: 6060319.2308 - mae: 1933.8750 - val_loss: 17404926.0000 - val_mae: 3343.9453
+Epoch 228/350
+91/91 - 0s - loss: 6092288.3901 - mae: 1954.8927 - val_loss: 16836006.0000 - val_mae: 3345.6594
+Epoch 229/350
+91/91 - 0s - loss: 6011715.1813 - mae: 1933.2018 - val_loss: 17054080.0000 - val_mae: 3362.5361
+Epoch 230/350
+91/91 - 0s - loss: 6352309.8791 - mae: 1975.0381 - val_loss: 17475282.0000 - val_mae: 3372.7825
+Epoch 231/350
+91/91 - 0s - loss: 6068852.1154 - mae: 1974.5349 - val_loss: 18450338.0000 - val_mae: 3397.6904
+Epoch 232/350
+91/91 - 0s - loss: 6073933.4780 - mae: 1969.8867 - val_loss: 17421288.0000 - val_mae: 3452.9065
+Epoch 233/350
+91/91 - 0s - loss: 6987999.0055 - mae: 2012.5055 - val_loss: 17511630.0000 - val_mae: 3394.8538
+Epoch 234/350
+91/91 - 0s - loss: 6933469.5385 - mae: 2105.0708 - val_loss: 18309042.0000 - val_mae: 3401.6350
+Epoch 235/350
+91/91 - 0s - loss: 5745307.5879 - mae: 1899.8594 - val_loss: 17640294.0000 - val_mae: 3445.7129
+Epoch 236/350
+91/91 - 0s - loss: 7306220.4560 - mae: 2074.2156 - val_loss: 18931474.0000 - val_mae: 3562.1755
+Epoch 237/350
+91/91 - 0s - loss: 6978999.9451 - mae: 2091.5640 - val_loss: 17014690.0000 - val_mae: 3333.4856
+Epoch 238/350
+91/91 - 0s - loss: 5966283.4011 - mae: 1929.4823 - val_loss: 16806094.0000 - val_mae: 3343.4382
+Epoch 239/350
+91/91 - 0s - loss: 6156849.9341 - mae: 1961.7104 - val_loss: 17121344.0000 - val_mae: 3360.5593
+Epoch 240/350
+91/91 - 0s - loss: 6205159.8626 - mae: 1953.4277 - val_loss: 17210370.0000 - val_mae: 3385.1653
+Epoch 241/350
+91/91 - 0s - loss: 6078573.3516 - mae: 1965.7091 - val_loss: 17997030.0000 - val_mae: 3389.6003
+Epoch 242/350
+91/91 - 0s - loss: 5974374.6813 - mae: 1945.9142 - val_loss: 16986424.0000 - val_mae: 3372.3799
+Epoch 243/350
+91/91 - 0s - loss: 6620997.6648 - mae: 2000.9969 - val_loss: 17247930.0000 - val_mae: 3352.8933
+Epoch 244/350
+91/91 - 0s - loss: 6662810.2308 - mae: 2067.9187 - val_loss: 17958912.0000 - val_mae: 3372.0867
+Epoch 245/350
+91/91 - 0s - loss: 6188191.7912 - mae: 1880.9696 - val_loss: 17012474.0000 - val_mae: 3429.4678
+Epoch 246/350
+91/91 - 0s - loss: 6322908.2637 - mae: 2011.9310 - val_loss: 18756670.0000 - val_mae: 3459.6924
+Epoch 247/350
+91/91 - 0s - loss: 6067672.4341 - mae: 1966.3530 - val_loss: 17102132.0000 - val_mae: 3395.1536
+Epoch 248/350
+91/91 - 0s - loss: 6454942.0604 - mae: 1943.0848 - val_loss: 17012452.0000 - val_mae: 3378.1523
+Epoch 249/350
+91/91 - 0s - loss: 6028983.5989 - mae: 1957.5294 - val_loss: 17768038.0000 - val_mae: 3378.2292
+Epoch 250/350
+91/91 - 0s - loss: 5926903.8132 - mae: 1926.4645 - val_loss: 17215286.0000 - val_mae: 3422.6699
+Epoch 251/350
+91/91 - 0s - loss: 6139984.4615 - mae: 1967.8208 - val_loss: 18284782.0000 - val_mae: 3407.6838
+Epoch 252/350
+91/91 - 0s - loss: 6360184.5495 - mae: 1976.9810 - val_loss: 17327872.0000 - val_mae: 3357.1042
+Epoch 253/350
+91/91 - 0s - loss: 6396590.3077 - mae: 1999.7974 - val_loss: 17221378.0000 - val_mae: 3351.5645
+Epoch 254/350
+91/91 - 0s - loss: 5918384.3901 - mae: 1938.6415 - val_loss: 16846206.0000 - val_mae: 3359.6633
+Epoch 255/350
+91/91 - 0s - loss: 6036451.6374 - mae: 1945.9038 - val_loss: 16769288.0000 - val_mae: 3363.4348
+Epoch 256/350
+91/91 - 0s - loss: 6006601.6374 - mae: 1943.5828 - val_loss: 17604046.0000 - val_mae: 3369.9255
+Epoch 257/350
+91/91 - 0s - loss: 5943831.0165 - mae: 1940.1875 - val_loss: 17280002.0000 - val_mae: 3383.8438
+Epoch 258/350
+91/91 - 0s - loss: 5958370.0714 - mae: 1918.1538 - val_loss: 17650370.0000 - val_mae: 3374.2070
+Epoch 259/350
+91/91 - 0s - loss: 5946070.8681 - mae: 1956.2550 - val_loss: 17440158.0000 - val_mae: 3366.6592
+Epoch 260/350
+91/91 - 0s - loss: 5945322.9176 - mae: 1949.4861 - val_loss: 16493183.0000 - val_mae: 3382.7219
+Epoch 261/350
+91/91 - 0s - loss: 6479659.8901 - mae: 1962.8019 - val_loss: 16960214.0000 - val_mae: 3337.4727
+Epoch 262/350
+91/91 - 0s - loss: 6596578.6758 - mae: 2087.8704 - val_loss: 18506942.0000 - val_mae: 3457.7312
+Epoch 263/350
+91/91 - 0s - loss: 6843087.2802 - mae: 1976.3994 - val_loss: 16906674.0000 - val_mae: 3410.0637
+Epoch 264/350
+91/91 - 0s - loss: 6382138.2582 - mae: 2040.4344 - val_loss: 20729682.0000 - val_mae: 3751.8142
+Epoch 265/350
+91/91 - 0s - loss: 6536651.6044 - mae: 2076.5710 - val_loss: 16745715.0000 - val_mae: 3407.7551
+Epoch 266/350
+91/91 - 0s - loss: 6423078.0934 - mae: 1939.6866 - val_loss: 16801940.0000 - val_mae: 3387.8164
+Epoch 267/350
+91/91 - 0s - loss: 6544465.7912 - mae: 2051.9983 - val_loss: 18020362.0000 - val_mae: 3379.2317
+Epoch 268/350
+91/91 - 0s - loss: 5805131.2253 - mae: 1910.2665 - val_loss: 16839746.0000 - val_mae: 3393.6052
+Epoch 269/350
+91/91 - 0s - loss: 6579947.4341 - mae: 1980.8702 - val_loss: 17733050.0000 - val_mae: 3445.8955
+Epoch 270/350
+91/91 - 0s - loss: 6092248.2143 - mae: 1986.6495 - val_loss: 16757469.0000 - val_mae: 3322.1172
+Epoch 271/350
+91/91 - 0s - loss: 5990376.1209 - mae: 1938.9009 - val_loss: 16285961.0000 - val_mae: 3369.8469
+Epoch 272/350
+91/91 - 0s - loss: 6926809.6758 - mae: 2024.5441 - val_loss: 16992282.0000 - val_mae: 3329.4941
+Epoch 273/350
+91/91 - 0s - loss: 6663728.1319 - mae: 2086.6006 - val_loss: 18289274.0000 - val_mae: 3394.4934
+Epoch 274/350
+91/91 - 0s - loss: 6526605.7363 - mae: 2016.1298 - val_loss: 16848194.0000 - val_mae: 3424.5886
+Epoch 275/350
+91/91 - 0s - loss: 5943485.6758 - mae: 1911.1182 - val_loss: 21445180.0000 - val_mae: 3860.6348
+Epoch 276/350
+91/91 - 0s - loss: 6970508.0000 - mae: 2152.0012 - val_loss: 17152494.0000 - val_mae: 3385.8621
+Epoch 277/350
+91/91 - 0s - loss: 6977502.6978 - mae: 2033.4418 - val_loss: 16491131.0000 - val_mae: 3393.8958
+Epoch 278/350
+91/91 - 0s - loss: 5661789.9038 - mae: 1886.5369 - val_loss: 20455754.0000 - val_mae: 3741.0759
+Epoch 279/350
+91/91 - 0s - loss: 6857293.5495 - mae: 2114.6335 - val_loss: 16450864.0000 - val_mae: 3382.5710
+Epoch 280/350
+91/91 - 0s - loss: 6756136.2967 - mae: 2009.0299 - val_loss: 17527058.0000 - val_mae: 3374.2620
+Epoch 281/350
+91/91 - 0s - loss: 6036655.2692 - mae: 1983.7428 - val_loss: 17576502.0000 - val_mae: 3364.2556
+Epoch 282/350
+91/91 - 0s - loss: 6147671.8571 - mae: 1915.9684 - val_loss: 16882758.0000 - val_mae: 3390.5369
+Epoch 283/350
+91/91 - 0s - loss: 5741955.2088 - mae: 1881.1439 - val_loss: 18644574.0000 - val_mae: 3471.1719
+Epoch 284/350
+91/91 - 0s - loss: 6086695.7967 - mae: 1991.3793 - val_loss: 16861048.0000 - val_mae: 3373.1414
+Epoch 285/350
+91/91 - 0s - loss: 5948996.1154 - mae: 1917.7775 - val_loss: 16979110.0000 - val_mae: 3348.9929
+Epoch 286/350
+91/91 - 0s - loss: 6523394.6044 - mae: 2071.1814 - val_loss: 17569776.0000 - val_mae: 3368.8308
+Epoch 287/350
+91/91 - 0s - loss: 7009887.8242 - mae: 2022.5945 - val_loss: 16812230.0000 - val_mae: 3410.0969
+Epoch 288/350
+91/91 - 0s - loss: 6853335.2033 - mae: 2064.9541 - val_loss: 20775128.0000 - val_mae: 3757.3020
+Epoch 289/350
+91/91 - 0s - loss: 6299208.0714 - mae: 2010.4623 - val_loss: 17262458.0000 - val_mae: 3437.7664
+Epoch 290/350
+91/91 - 0s - loss: 6892641.8626 - mae: 2022.1813 - val_loss: 18441108.0000 - val_mae: 3448.9531
+Epoch 291/350
+91/91 - 0s - loss: 6058155.9066 - mae: 1972.1477 - val_loss: 16947028.0000 - val_mae: 3336.2021
+Epoch 292/350
+91/91 - 0s - loss: 6041879.8736 - mae: 1911.7023 - val_loss: 16342195.0000 - val_mae: 3342.4504
+Epoch 293/350
+91/91 - 0s - loss: 5874984.0275 - mae: 1916.1310 - val_loss: 17056938.0000 - val_mae: 3351.1917
+Epoch 294/350
+91/91 - 0s - loss: 5839268.3901 - mae: 1908.5071 - val_loss: 16554357.0000 - val_mae: 3364.1680
+Epoch 295/350
+91/91 - 0s - loss: 5805475.2473 - mae: 1895.8975 - val_loss: 17360312.0000 - val_mae: 3335.2698
+Epoch 296/350
+91/91 - 0s - loss: 5858784.9341 - mae: 1915.6005 - val_loss: 17375802.0000 - val_mae: 3335.7898
+Epoch 297/350
+91/91 - 0s - loss: 5886526.7802 - mae: 1938.6453 - val_loss: 16956784.0000 - val_mae: 3334.5098
+Epoch 298/350
+91/91 - 0s - loss: 5812290.5275 - mae: 1887.8192 - val_loss: 16524219.0000 - val_mae: 3349.7957
+Epoch 299/350
+91/91 - 0s - loss: 6068334.4890 - mae: 1967.7723 - val_loss: 17438488.0000 - val_mae: 3370.1250
+Epoch 300/350
+91/91 - 0s - loss: 6019141.8819 - mae: 1931.6553 - val_loss: 16654889.0000 - val_mae: 3362.2825
+Epoch 301/350
+91/91 - 0s - loss: 5794030.4890 - mae: 1899.2061 - val_loss: 17718008.0000 - val_mae: 3371.7966
+Epoch 302/350
+91/91 - 0s - loss: 5980339.0604 - mae: 1917.3829 - val_loss: 17177154.0000 - val_mae: 3361.7888
+Epoch 303/350
+91/91 - 0s - loss: 5761871.9286 - mae: 1898.1810 - val_loss: 17696072.0000 - val_mae: 3371.6653
+Epoch 304/350
+91/91 - 0s - loss: 5896801.3626 - mae: 1961.7277 - val_loss: 17016902.0000 - val_mae: 3340.8796
+Epoch 305/350
+91/91 - 0s - loss: 5724224.1264 - mae: 1891.6360 - val_loss: 16973946.0000 - val_mae: 3353.5559
+Epoch 306/350
+91/91 - 0s - loss: 5777871.3874 - mae: 1908.6804 - val_loss: 17041786.0000 - val_mae: 3355.0149
+Epoch 307/350
+91/91 - 0s - loss: 5924096.5659 - mae: 1912.3318 - val_loss: 16966254.0000 - val_mae: 3370.2871
+Epoch 308/350
+91/91 - 0s - loss: 5839110.5192 - mae: 1927.0063 - val_loss: 17533130.0000 - val_mae: 3359.9890
+Epoch 309/350
+91/91 - 0s - loss: 5846553.2692 - mae: 1950.1896 - val_loss: 16728467.0000 - val_mae: 3405.4141
+Epoch 310/350
+91/91 - 0s - loss: 6193524.2500 - mae: 1914.4806 - val_loss: 17220380.0000 - val_mae: 3353.0518
+Epoch 311/350
+91/91 - 0s - loss: 6234991.7582 - mae: 1978.1948 - val_loss: 17886920.0000 - val_mae: 3383.4971
+Epoch 312/350
+91/91 - 0s - loss: 5837764.1319 - mae: 1902.5781 - val_loss: 16587837.0000 - val_mae: 3405.5332
+Epoch 313/350
+91/91 - 0s - loss: 5891544.5962 - mae: 1879.1682 - val_loss: 18565478.0000 - val_mae: 3492.7551
+Epoch 314/350
+91/91 - 0s - loss: 6734011.4835 - mae: 2058.3132 - val_loss: 16538235.0000 - val_mae: 3342.0520
+Epoch 315/350
+91/91 - 0s - loss: 6474109.6703 - mae: 1969.8610 - val_loss: 16480753.0000 - val_mae: 3354.6238
+Epoch 316/350
+91/91 - 0s - loss: 7423129.4615 - mae: 2130.2202 - val_loss: 17520238.0000 - val_mae: 3397.9189
+Epoch 317/350
+91/91 - 0s - loss: 6477441.5165 - mae: 1983.4200 - val_loss: 16688112.0000 - val_mae: 3355.1106
+Epoch 318/350
+91/91 - 0s - loss: 5888693.6648 - mae: 1899.2474 - val_loss: 18611976.0000 - val_mae: 3511.8313
+Epoch 319/350
+91/91 - 0s - loss: 6080015.3407 - mae: 1963.7369 - val_loss: 16120416.0000 - val_mae: 3303.8855
+Epoch 320/350
+91/91 - 0s - loss: 5823973.7527 - mae: 1883.4076 - val_loss: 16230157.0000 - val_mae: 3330.6191
+Epoch 321/350
+91/91 - 0s - loss: 5936051.1648 - mae: 1931.2631 - val_loss: 17525622.0000 - val_mae: 3388.0134
+Epoch 322/350
+91/91 - 0s - loss: 6102856.9560 - mae: 1935.1562 - val_loss: 16598187.0000 - val_mae: 3336.6003
+Epoch 323/350
+91/91 - 0s - loss: 6456100.7912 - mae: 2026.7961 - val_loss: 18064138.0000 - val_mae: 3404.6287
+Epoch 324/350
+91/91 - 0s - loss: 6167972.0302 - mae: 2023.6837 - val_loss: 17061750.0000 - val_mae: 3415.4851
+Epoch 325/350
+91/91 - 0s - loss: 5787897.1401 - mae: 1918.9556 - val_loss: 19008818.0000 - val_mae: 3457.5344
+Epoch 326/350
+91/91 - 0s - loss: 6020566.6813 - mae: 1968.7184 - val_loss: 17195880.0000 - val_mae: 3379.1868
+Epoch 327/350
+91/91 - 0s - loss: 5724643.4176 - mae: 1877.1892 - val_loss: 17385764.0000 - val_mae: 3366.3293
+Epoch 328/350
+91/91 - 0s - loss: 5816841.1538 - mae: 1936.2682 - val_loss: 17752066.0000 - val_mae: 3362.8645
+Epoch 329/350
+91/91 - 0s - loss: 5587778.3956 - mae: 1854.7047 - val_loss: 16978230.0000 - val_mae: 3399.9434
+Epoch 330/350
+91/91 - 0s - loss: 5802985.4615 - mae: 1870.6636 - val_loss: 17837548.0000 - val_mae: 3381.5583
+Epoch 331/350
+91/91 - 0s - loss: 6402767.3077 - mae: 2063.3076 - val_loss: 17377472.0000 - val_mae: 3357.7566
+Epoch 332/350
+91/91 - 0s - loss: 6151607.4011 - mae: 1927.2472 - val_loss: 17019312.0000 - val_mae: 3394.4260
+Epoch 333/350
+91/91 - 0s - loss: 6527554.6813 - mae: 2048.4465 - val_loss: 18658522.0000 - val_mae: 3516.0320
+Epoch 334/350
+91/91 - 0s - loss: 5604863.5934 - mae: 1893.7115 - val_loss: 16731615.0000 - val_mae: 3406.2578
+Epoch 335/350
+91/91 - 0s - loss: 6065954.4945 - mae: 1919.4674 - val_loss: 17732150.0000 - val_mae: 3358.5000
+Epoch 336/350
+91/91 - 0s - loss: 5804415.4478 - mae: 1921.9735 - val_loss: 17511654.0000 - val_mae: 3343.9895
+Epoch 337/350
+91/91 - 0s - loss: 5619249.8297 - mae: 1889.7723 - val_loss: 16764645.0000 - val_mae: 3325.4294
+Epoch 338/350
+91/91 - 0s - loss: 5777323.1429 - mae: 1881.1238 - val_loss: 17510168.0000 - val_mae: 3370.5195
+Epoch 339/350
+91/91 - 0s - loss: 5653816.1209 - mae: 1892.1997 - val_loss: 17172650.0000 - val_mae: 3347.4656
+Epoch 340/350
+91/91 - 0s - loss: 5789930.8462 - mae: 1926.7550 - val_loss: 16210925.0000 - val_mae: 3313.2031
+Epoch 341/350
+91/91 - 0s - loss: 5830387.9835 - mae: 1866.7822 - val_loss: 16477343.0000 - val_mae: 3318.0674
+Epoch 342/350
+91/91 - 0s - loss: 5667483.7143 - mae: 1884.7462 - val_loss: 18271978.0000 - val_mae: 3461.7039
+Epoch 343/350
+91/91 - 0s - loss: 5671541.0055 - mae: 1902.4447 - val_loss: 16521445.0000 - val_mae: 3325.2656
+Epoch 344/350
+91/91 - 0s - loss: 5753555.0220 - mae: 1904.3928 - val_loss: 16709517.0000 - val_mae: 3300.5671
+Epoch 345/350
+91/91 - 0s - loss: 5577088.2088 - mae: 1879.4224 - val_loss: 16892846.0000 - val_mae: 3306.8262
+Epoch 346/350
+91/91 - 0s - loss: 5575562.1978 - mae: 1868.1824 - val_loss: 16950870.0000 - val_mae: 3318.1047
+Epoch 347/350
+91/91 - 0s - loss: 5597998.6154 - mae: 1859.8099 - val_loss: 16947804.0000 - val_mae: 3334.1985
+Epoch 348/350
+91/91 - 0s - loss: 5622821.3846 - mae: 1878.2805 - val_loss: 16851050.0000 - val_mae: 3322.1160
+Epoch 349/350
+91/91 - 0s - loss: 5755427.8736 - mae: 1916.5659 - val_loss: 16274095.0000 - val_mae: 3334.0745
+Epoch 350/350
+91/91 - 0s - loss: 6179138.1154 - mae: 1917.9363 - val_loss: 17286034.0000 - val_mae: 3339.3347
+MSE: 17286034.000, RMSE: 4157.648, MAE: 3339.335
+Predicted: 18452.195
